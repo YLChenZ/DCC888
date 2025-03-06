@@ -24,7 +24,7 @@ def check_environment(env, init_in):
     print(f"Initial live set: {sorted(init_in)}")
     for var in init_in:
         try:
-            env.get(var)
+            print(var,env.get(var))
         except LookupError:
             print(f"{var} is used without being defined")
 
@@ -48,7 +48,10 @@ if __name__ == "__main__":
     lang.Inst.next_index = 0
     lines = sys.stdin.readlines()
     env, program = parser.file2cfg_and_env(lines)
+    print_instructions(program)   #print instructions
     equations = dataflow.liveness_constraint_gen(program)
+    print([str(eq) for eq in equations])   #print data flow equations
     df_env = dataflow.abstract_interp(equations)
+    print(df_env)  # print data flow env
     init_in = df_env[dataflow.name_in(program[0].ID)]
     check_environment(env, init_in)
