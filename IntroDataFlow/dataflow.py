@@ -1,4 +1,4 @@
-from lang import Inst, BinOp, Bt
+from lang import *
 from abc import ABC, abstractmethod
 
 
@@ -178,7 +178,7 @@ class ReachingDefs_Bt_OUT_Eq(OUT_Eq):
         return f"{self.name()}: {gen_set}{kill_set}"
 
 
-class ReachingDefs_IN_Eq(IN_Eq):
+class ReachingDefs_IN_Eq(IN_Eq):  #meet operator
     """
     This concrete class implements the meet operation for reaching-definition
     analysis. The meet operation produces the IN set of a program point. This
@@ -240,7 +240,14 @@ class LivenessAnalysisIN_Eq(IN_Eq):
             >>> sorted(df.eval_aux({'OUT_0': {'x'}}))
             ['a', 'b']
         """
-        # TODO: implement this method
+        # In[i0] = Use[i0] union (Out[i0] - Def[i0])   Add(1,2,3) : 1 = 2+3  Lth(1,2,3) 1 = 2 < 3 Bt(cond,t,f) : 
+        out_set = data_flow_env[name_out(self.inst.ID)]
+        use_set = set()
+        def_set = set()
+        if isinstance(self.inst,BinOp) :
+            use_set.update([self.inst.src0,self.inst.src1])
+            def_set.add(self.inst.dst)
+        return use_set.union(out_set.difference(def_set))
 
     def __str__(self):
         """
@@ -257,7 +264,7 @@ class LivenessAnalysisIN_Eq(IN_Eq):
         return f"{self.name()}: {kill_set} + {sorted(self.inst.uses())}"
 
 
-class LivenessAnalysisOUT_Eq(OUT_Eq):
+class LivenessAnalysisOUT_Eq(OUT_Eq):  #meet  = Union
     def eval_aux(self, data_flow_env: dict[str, set]) -> None:
         """
         Computes the join (or meet) operation of the liveness analysis. The
@@ -274,7 +281,10 @@ class LivenessAnalysisOUT_Eq(OUT_Eq):
             >>> sorted(df.eval_aux({'IN_0': {('c'), ('d')}, 'IN_1': {('a')}}))
             ['a', 'c', 'd']
         """
-        # TODO: implement this method
+        solution = set()
+        for inst in self.inst.nexts:
+            solution = solution.union(data_flow_env[name_in(inst.ID)])
+        return solution
 
     def __str__(self):
         """
@@ -331,8 +341,9 @@ def liveness_constraint_gen(insts: list[Inst]) -> list[DataFlowEq]:
         >>> sol[0] + " " + sol[1]
         "IN_0: (OUT_0 - {'c'}) + ['a', 'b'] IN_1: (OUT_1 - {'d'}) + ['a', 'c']"
     """
-    # TODO: implement this method.
-    return []
+    in_eq = [LivenessAnalysisIN_Eq(i) for i in insts]
+    out_eq = [LivenessAnalysisOUT_Eq(i) for i in insts]
+    return in_eq + out_eq
 
 
 def abstract_interp(equations):
@@ -368,3 +379,13 @@ def abstract_interp(equations):
     while changed:
         changed = reduce(lambda acc, eq: eq.eval(env) or acc, equations, False)
     return env
+
+Inst.next_index = 0
+i0 = Add('c', 'a', 'b')
+i1 = Mul('d', 'c', 'a')
+i0.add_next(i1)
+eqs = liveness_constraint_gen([i0, i1])
+sol = abstract_interp(eqs)
+# sol = [str(eq) for eq in liveness_constraint_gen([i0, i1])]
+print(str(sol))
+# print(f"IN_0: {sorted(sol['IN_0'])}, OUT_0: {sorted(sol['OUT_0'])}")
