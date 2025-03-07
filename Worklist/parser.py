@@ -1,13 +1,22 @@
 """
 This file implements a parser: a function that reads a text file, and returns
 a control-flow graph of instructions plus an environment mapping variables to
-integer values.
+integer values. The text file has the following format:
+
+    [First line] A dictionary describing the environment
+    [n-th line] The n-th instruction in our program.
+
+As an example, the program below sums up the numbers a, b and c:
+
+    {"a": 1, "b": 3, "c": 5}
+    x = add a b
+    l2 = x = add x c
 """
 
 from lang import *
 
 
-def line2env(line):
+def line2env(line: str) -> Env:
     """
     Maps a string (the line) to a dictionary in python. This function will be
     useful to read the first line of the text file. This line contains the
@@ -27,7 +36,7 @@ def line2env(line):
     return env_lang
 
 
-def file2cfg_and_env(lines):
+def file2cfg_and_env(lines: list[str]) -> tuple[Env, list[Inst]]:
     """
     Builds a control-flow graph representation for the strings stored in
     `lines`. The first string represents the environment. The other strings
@@ -56,7 +65,94 @@ def file2cfg_and_env(lines):
         >>> interp(prog[0], env).get("x")
         9
     """
-    # TODO: Imlement this method.
+
     env = line2env(lines[0])
+    prog = lines[1:]
     insts = []
+    bt_idx = []
+    idx = 0
+    # while(idx < len(prog)) :
+    #     l = prog[idx].split()
+    #     if l[0] == 'bt':
+    #         insts.append(None)
+    #         bt_idx.append(idx)
+    #     else :
+    #         match l[2] :
+    #             case 'add':
+    #                 insts.append(Add(l[0],l[3],l[4]))
+    #             case 'mul':
+    #                 insts.append(Mul(l[0],l[3],l[4]))
+    #             case 'lth':
+    #                 insts.append(Lth(l[0],l[3],l[4]))
+    #             case 'geq':
+    #                 insts.append(Geq(l[0],l[3],l[4]))
+    #             case _ :
+    #                 raise("UnKnown Instruction!")
+    #     idx += 1
+    # for idx in bt_idx :
+    #     l = prog[idx].split()
+    #     insts[idx] = Bt(l[1],insts[int(l[2])],insts[idx+1])
+    
+    # length = len(insts)
+    # i = 0
+    # while i < length - 1 :
+    #     if i in bt_idx :
+    #         i += 1
+    #         continue
+    #     else :
+    #         insts[i].add_next(insts[i+1])
+    #         i += 1
+
+
+    # bt cond linenum
+    while(idx < len(prog)) :
+        l = prog[idx].split()
+        if l[0] == 'bt':
+            insts.append(Bt(l[1]))
+            bt_idx.append((idx,int(l[2])))
+        else :
+            match l[2] :
+                case 'add':
+                    insts.append(Add(l[0],l[3],l[4]))
+                case 'mul':
+                    insts.append(Mul(l[0],l[3],l[4]))
+                case 'lth':
+                    insts.append(Lth(l[0],l[3],l[4]))
+                case 'geq':
+                    insts.append(Geq(l[0],l[3],l[4]))
+                case _ :
+                    raise("UnKnown Instruction!")
+        idx += 1
+    for item in bt_idx :
+        insts[item[0]].add_true_next(insts[item[0]+1])
+        insts[item[0]].add_next(insts[item[1]])
+    i = 0
+    while i < len(insts) - 1 :
+        if i in list(map(lambda x: x[0], bt_idx)) :
+            i += 1
+            continue
+        else :
+            insts[i].add_next(insts[i+1])
+            i += 1
     return (env, insts)
+
+# l0 = '{"a": 1, "b": 3, "x": 42, "z": 0}'
+# l1 = 'bt a 2'
+# l2 = 'x = add a b'
+# l3 = 'x = add x z'
+# env, prog = file2cfg_and_env([l0, l1, l2, l3])
+# print(interp(prog[0], env).get("x"))
+
+# l0 = '{"a": 1, "b": 3, "c": 5}'
+# l1 = 'x = add a b'
+# l2 = 'x = add x c'
+# env, prog = file2cfg_and_env([l0, l1, l2])
+# print(interp(prog[0], env).get("x"))
+
+
+# l0 = '{"a": 0, "b": 3}'
+# l1 = 'bt a 1'
+# l2 = 'x = add a b'
+# env, prog = file2cfg_and_env([l0, l1, l2])
+# interp(prog[0], env).get("x")
+# print(interp(prog[0], env).get("x"))
