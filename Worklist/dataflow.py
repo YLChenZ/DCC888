@@ -1,4 +1,4 @@
-from lang import Env, Inst, BinOp, Bt
+from lang import *
 from abc import ABC, abstractmethod
 
 
@@ -264,7 +264,10 @@ class ReachingDefs_IN_Eq(IN_Eq):
             ['OUT_0', 'OUT_1']
         """
         # TODO: Implement this method
-        return []
+        solution = []
+        for inst in self.inst.preds :
+            solution.append(name_out(inst.ID))
+        return solution
 
     def __str__(self):
         """
@@ -283,6 +286,15 @@ class ReachingDefs_IN_Eq(IN_Eq):
         """
         succs = ", ".join([name_out(pred.ID) for pred in self.inst.preds])
         return f"{self.name()}: Union( {succs} )"
+
+# Inst.next_index = 0
+# i0 = Add('x', 'a', 'b')
+# i1 = Add('x', 'c', 'd')
+# i2 = Add('y', 'x', 'x')
+# i0.add_next(i2)
+# i1.add_next(i2)
+# df = ReachingDefs_IN_Eq(i2)
+# print(sorted(df.deps()))
 
 
 def reaching_defs_constraint_gen(insts):
@@ -333,7 +345,7 @@ def abstract_interp(equations):
         changed = reduce(lambda acc, eq: eq.eval(env) or acc, equations, False)
     return (env, DataFlowEq.num_evals)
 
-
+from collections import defaultdict
 def build_dependence_graph(equations) -> dict[str, list[DataFlowEq]]:
     """
     This function builds the dependence graph of equations.
@@ -349,11 +361,52 @@ def build_dependence_graph(equations) -> dict[str, list[DataFlowEq]]:
         ['OUT_0']
     """
     # TODO: implement this method
-    dep_graph = {eq.name(): [] for eq in equations}
-    return dep_graph
+    # deps = {eq.name(): eq.deps() for eq in equations}
+    # tmp : dict[str,list[str]]= {}
+    # for eq in equations :
+    #     for k,v in deps.items() :
+    #         if eq.name() in v :
+    #             if eq.name() in tmp:
+    #                 tmp[eq.name()] = tmp[eq.name()].append(k)
+    #             else :
+    #                 tmp[eq.name()] = [k]
+    # dep_graph = {}
+
+    # for k,v in tmp.items() :
+    #     for eq in equations :
+    #         if eq.name() in v:
+    #             if k in dep_graph:
+    #                 dep_graph[k] = dep_graph[k].append(eq)
+    #             else :
+    #                 dep_graph[k] = [eq]
 
 
-def abstract_interp_worklist(equations) -> tuple[Env, int]:
+    # # dep_graph = {eq.name(): eq.deps() for eq in equations}
+    # return dep_graph
+    deps = {eq.name(): eq.deps() for eq in equations}
+    # print(deps)
+    tmp = defaultdict(list)
+    for k, v in deps.items():
+        for dep in v:
+            tmp[dep].append(k)
+    # print(tmp)
+    dep_graph = defaultdict(list)
+    for k, v in tmp.items():
+        dep_graph[k] = [eq for eq in equations if eq.name() in v]
+
+    return dict(dep_graph)
+
+
+# Inst.next_index = 0
+# i0 = Add('c', 'a', 'b')
+# i1 = Mul('d', 'c', 'a')
+# i0.add_next(i1)
+# eqs = reaching_defs_constraint_gen([i0, i1])
+# deps = build_dependence_graph(eqs)
+# # print(deps)
+# print([eq.name() for eq in deps['IN_0']])
+
+def abstract_interp_worklist(equations : list[DataFlowEq]) -> tuple[Env, int]:
     """
     This function solves the system of equations using a worklist. Once an
     equation E is evaluated, and the evaluation changes the environment, only
@@ -374,4 +427,20 @@ def abstract_interp_worklist(equations) -> tuple[Env, int]:
 
     DataFlowEq.num_evals = 0
     env = defaultdict(list)
+    dep_graph = build_dependence_graph(equations)
+    worklist = equations
+    # print(dep_graph)
+    while worklist :
+        eq : DataFlowEq = worklist.pop()
+        if eq.eval(env) :
+            if eq.name() in dep_graph.keys():
+                worklist.extend(dep_graph[eq.name()])
     return (env, DataFlowEq.num_evals)
+
+# Inst.next_index = 0
+# i0 = Add('c', 'a', 'b')
+# i1 = Mul('d', 'c', 'a')
+# i0.add_next(i1)
+# eqs = reaching_defs_constraint_gen([i0, i1])
+# (sol, num_evals) = abstract_interp_worklist(eqs)
+# print(f"OUT_0: {sorted(sol['OUT_0'])}")
