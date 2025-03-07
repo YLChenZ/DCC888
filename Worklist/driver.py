@@ -27,4 +27,4 @@ if __name__ == "__main__":
     (env_chaotic, n_chaotic) = chaotic_solver(program)
     (env_worklist, n_worklist) = worklist_solver(program)
     print(f"Are the environments the same? {env_chaotic == env_worklist}")
-    print(f"Used less than {n_chaotic} iterations? {n_worklist <= n_chaotic}")
+    print(f"Worklist used {n_worklist} less than Chaotic used {n_chaotic} iterations? {n_worklist <= n_chaotic}")
