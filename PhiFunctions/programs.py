@@ -210,3 +210,7 @@ def test_fib_swap_problem_fixed_with_phi_blocks(n):
     c2.add_next(phi_block)
     interp(phi_block, env)
     return env.get("answer")
+
+# print(test_fib_swap_problem_fixed_with_phi_blocks(2))
+# print(test_fib_swap_problem_fixed_with_phi_blocks(3))
+# print(test_fib_swap_problem_fixed_with_phi_blocks(6))

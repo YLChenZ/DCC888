@@ -77,7 +77,11 @@ class Env:
             4
         """
         # TODO: Implement this method
-        return 0
+        val = next((value for (e_var, value) in self.env if e_var in vars), None)
+        if val is not None:
+            return val
+        else:
+            raise LookupError(f"Absent key in {vars}")
 
     def set(s, var, value):
         """
@@ -94,6 +98,19 @@ class Env:
         for var, value in s.env:
             print(f"{var}: {value}")
 
+# e = Env()
+# e.set("b", 1)
+# e.set("a", 2)
+# e.set("b", 3)
+# print(e.get_from_list(["b", "a"]))
+
+
+# e = Env()
+# e.set("b", 1)
+# e.set("a", 2)
+# e.set("b", 3)
+# e.set("a", 4)
+# print(e.get_from_list(["b", "a"]))
 
 class Inst(ABC):
     """
@@ -171,10 +188,18 @@ class Phi(Inst):
         super().__init__()
 
     def definition(s):
-        return set([s.dst])
+        return [s.dst]
 
     def uses(s):
-        return set(s.args)
+        # return set(s.args) #TypeError: unhashable type: 'list'!!!
+        result = []
+        # print(s.args)
+        for arg in s.args:
+            if isinstance(arg,list) :
+                result = arg
+                return result
+            else :
+                return result
 
     def eval(s, env):
         """
@@ -202,6 +227,7 @@ class Phi(Inst):
         program is not in conventional SSA-form (as per Definition 1 in the
         paper 'SSA Elimination after Register Allocation' - 2009).
         """
+        # print(s.uses())
         env.set(s.dst, env.get_from_list(s.uses()))
 
     def __str__(self):
@@ -210,6 +236,23 @@ class Phi(Inst):
         pred_s = f"\n  P: {', '.join([str(inst.ID) for inst in self.preds])}"
         next_s = f"\n  N: {self.nexts[0].ID if len(self.nexts) > 0 else ''}"
         return inst_s + pred_s + next_s
+
+
+# a = Phi("a", ["b0", "b1", "b2"])
+# e = Env()
+# e.set("b0", 1)
+# e.set("b1", 3)
+# a.eval(e)
+# print(e.get("a"))
+
+# a0 = Phi("a0", ["a1", "a0"])
+# a1 = Phi("a1", ["a0", "a1"])
+# e = Env()
+# e.set("a0", 1)
+# e.set("a1", 3)
+# a0.eval(e)
+# a1.eval(e)
+# print(e.get("a0") - e.get("a1"))
 
 
 class PhiBlock(Inst):
@@ -269,6 +312,11 @@ class PhiBlock(Inst):
         # here...
         # self.selectors = ...
         #########################################
+        i = 0
+        self.selectors = {}
+        while i < len(selector_IDs) :
+            self.selectors[selector_IDs[i]] = i  #phis[i].ID
+            i+=1
         super().__init__()
 
     def definition(self):
@@ -298,17 +346,44 @@ class PhiBlock(Inst):
             >>> sorted(aa.uses())
             ['a0', 'a0', 'x', 'y']
         """
-        return sum([phi.uses() for phi in self.phis], [])
+        return sum([phi.uses() for phi in self.phis], []) 
 
     def eval(self, env: Env, PC: int):
         # TODO: Read all the definitions
         # TODO: Assign all the uses:
-        pass
+        sel = self.selectors[PC]
+        # print(sel)
+        tmp = []
+        for phi in self.phis :
+            defs = phi.definition()
+            # print(defs)
+            uses = phi.uses()
+            # print(phi.uses())
+            # print(uses)
+            tmp.append((defs[0],env.get(uses[sel])))
+        for item in tmp :
+            env.set(item[0],item[1])
+        
 
     def __str__(self):
         block_str = "\n".join([str(phi) for phi in self.phis])
         return f"PHI_BLOCK [\n{block_str}\n]"
 
+
+# a0 = Phi("a0", ["a0", "a1"])
+# a1 = Phi("a1", ["a1", "a0"])
+# aa = PhiBlock([a0, a1], [10, 31])
+# e = Env()
+# e.set("a0", 1)
+# e.set("a1", 3)
+# aa.eval(e, 31)
+# print(e.get("a0") - e.get("a1"))
+# 2
+
+# a0 = Phi("a0", ["a0", "x"])
+# a1 = Phi("a1", ["y", "a0"])
+# aa = PhiBlock([a0, a1], [10, 31])
+# print(sorted(aa.uses()))
 
 class BinOp(Inst):
     """
@@ -500,15 +575,21 @@ def interp(instruction: Inst, environment: Env, PC=0):
         2
     """
     if instruction:
-        print("----------------------------------------------------------")
-        print(instruction)
-        environment.dump()
+        # print("----------------------------------------------------------")
+        # print(instruction)
+        # environment.dump()
         if isinstance(instruction, PhiBlock):
-            # TODO: implement this part:
-            pass
+            instruction.eval(environment,PC)
         else:
-            # TODO: implement this part:
-            pass
+            instruction.eval(environment)
         return interp(instruction.get_next(), environment, instruction.ID)
     else:
         return environment
+
+# env = Env({"m": 3, "n": 2, "zero": 0})
+# m_min = Add("answer", "m", "zero")
+# n_min = Add("answer", "n", "zero")
+# p = Lth("p", "n", "m")
+# b = Bt("p", n_min, m_min)
+# p.add_next(b)
+# print(interp(p, env).get("answer"))
